@@ -28,13 +28,14 @@ export default {
         Cropper
     },
     props: {
+        // null when the thumbnail type dimension is "Automatic"
         width: {
             type: Number,
-            required: true
+            default: null
         },
         height: {
             type: Number,
-            required: true
+            default: null
         },
         sizingMode: {
             type: String,
@@ -162,6 +163,24 @@ export default {
                 this.$refs.cropper.zoom(0.95)
             }
         },
+        getOutputSize(cropWidth, cropHeight) {
+            if (this.sizingMode === 'exact') {
+                return { width: this.width, height: this.height }
+            }
+            // Proportional: fit the crop inside the bounds that are set, keeping its aspect ratio
+            const ratios = []
+            if (this.width) {
+                ratios.push(this.width / cropWidth)
+            }
+            if (this.height) {
+                ratios.push(this.height / cropHeight)
+            }
+            const scale = Math.min(...ratios)
+            return {
+                width: Math.round(cropWidth * scale),
+                height: Math.round(cropHeight * scale)
+            }
+        },
         save() {
             var my = this
             this.saveInProgress = true
@@ -171,16 +190,17 @@ export default {
             const sourceCanvas = result.canvas
 
             if (sourceCanvas) {
-                // Create a new canvas at the exact thumbnail size
+                // Create a new canvas at the thumbnail size
+                const size = this.getOutputSize(sourceCanvas.width, sourceCanvas.height)
                 const canvas = document.createElement('canvas')
-                canvas.width = this.width
-                canvas.height = this.height
+                canvas.width = size.width
+                canvas.height = size.height
 
-                // Draw the cropped image at the exact size
+                // Draw the cropped image at the thumbnail size
                 const ctx = canvas.getContext('2d')
                 ctx.imageSmoothingEnabled = true
                 ctx.imageSmoothingQuality = 'high'
-                ctx.drawImage(sourceCanvas, 0, 0, this.width, this.height)
+                ctx.drawImage(sourceCanvas, 0, 0, size.width, size.height)
 
                 const form = new FormData()
                 form.append('ccm_token', this.accessToken)
